@@ -1,4 +1,4 @@
-# backend.py — SystemVerse Python WebSocket Server
+# backend.py — OrbitOS Python WebSocket Server
 # Streams real OS telemetry via psutil + live traceroute via Windows tracert
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -178,6 +178,7 @@ psutil.cpu_percent(interval=None)
 def _collect_metrics_sync() -> dict:
     """Blocking call — run inside asyncio.to_thread()"""
     cpu_total = psutil.cpu_percent(interval=0.5)
+    ram_total = psutil.virtual_memory().percent
 
     procs: list[dict] = []
     for proc in psutil.process_iter(["pid", "name", "memory_info", "cpu_percent"]):
@@ -224,6 +225,7 @@ def _collect_metrics_sync() -> dict:
         "type":          "metrics",
         "timestamp":     int(time.time() * 1000),
         "cpu_total":     round(cpu_total, 1),
+        "ram_total":     round(ram_total, 1),
         "top_processes": top,
         "bg_processes": {
             "count":        len(bg),
@@ -240,12 +242,12 @@ async def get_system_metrics() -> dict:
         print(f"[metrics] Falling back to mock: {exc}")
         return _mock_metrics()
 
-
 def _mock_metrics() -> dict:
     return {
         "type":      "metrics",
         "timestamp": int(time.time() * 1000),
         "cpu_total": round(20 + random.random() * 40, 1),
+        "ram_total": round(40 + random.random() * 20, 1),
         "top_processes": [
             {
                 "pid":     1000 + i,
@@ -463,9 +465,10 @@ async def handler(websocket) -> None:
 async def main() -> None:
     banner = [
         "",
-        "  =========================================",
-        "     SystemVerse -- Python Backend",
-        "  =========================================",
+        "   ============================================",
+        "     OrbitOS -- Python Backend",
+        "     Real-time OS telemetry & Traceroute",
+        "   ============================================",
         f"   WebSocket  ->  ws://localhost:{PORT}",
         "   Press Ctrl+C to stop",
         "  =========================================",

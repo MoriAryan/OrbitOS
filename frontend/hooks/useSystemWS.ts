@@ -14,6 +14,7 @@ export interface MetricsData {
   type: "metrics";
   timestamp: number;
   cpu_total: number;
+  ram_total: number;
   top_processes: ProcessData[];
   bg_processes: { count: number; total_ram_mb: number; processes?: ProcessData[] };
 }

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 import { useSystemWS } from "@/hooks/useSystemWS";
 import HUD from "@/components/HUD";
+import type { SelectedItem } from "@/components/SidePanel";
 
 // Dynamic imports for Three.js components (browser-only)
 const SystemScene = dynamic(() => import("@/components/SystemScene"), {
@@ -39,7 +40,7 @@ const SystemScene = dynamic(() => import("@/components/SystemScene"), {
           letterSpacing: "0.1em",
         }}
       >
-        INITIALISING SYSTEMVERSE…
+        INITIALISING ORBITOS…
       </p>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -55,6 +56,7 @@ export default function Home() {
     useSystemWS();
 
   const [zoomedIn, setZoomedIn] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
   const handleEarthZoomed = useCallback(() => {
     setZoomedIn(true);
@@ -80,10 +82,20 @@ export default function Home() {
         metrics={metrics}
         onEarthZoomed={handleEarthZoomed}
         zoomedIn={zoomedIn}
+        selectedItem={selectedItem}
+        onSelectItem={setSelectedItem}
       />
 
       {/* HUD overlays */}
-      {!zoomedIn && <HUD metrics={metrics} wsStatus={wsStatus} />}
+      {!zoomedIn && (
+        <HUD 
+          metrics={metrics} 
+          wsStatus={wsStatus} 
+          selectedItem={selectedItem}
+          onSelectItem={setSelectedItem}
+          onTraceOpen={handleEarthZoomed}
+        />
+      )}
 
       {/* Traceroute Globe — fades in after Earth click + zoom */}
       {zoomedIn && (

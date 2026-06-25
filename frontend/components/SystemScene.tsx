@@ -1,7 +1,7 @@
 "use client";
 
 import { OrbitControls, Stars } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import gsap from "gsap";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -51,16 +51,108 @@ function CameraRig({ targetPos, onZoomComplete }: CameraRigProps) {
   return null;
 }
 
+// ── Follow Rig ────────────────────────────────────────────────────────────────
+interface FollowRigProps {
+  followTargetRef: React.MutableRefObject<{ position: THREE.Vector3; radius: number }>;
+  orbitControlsRef: React.MutableRefObject<any>;
+  isActive: boolean;
+  selectedItem: SelectedItem | null;
+}
+
+function FollowRig({ followTargetRef, orbitControlsRef, isActive, selectedItem }: FollowRigProps) {
+  const { camera } = useThree();
+  const wasActiveRef = useRef(false);
+  const prevSelectedRef = useRef<string | null>(null);
+  const hasArrivedRef = useRef(false);
+  const prevTargetPosRef = useRef<THREE.Vector3 | null>(null);
+
+  useFrame((_, delta) => {
+    const currentId = selectedItem ? selectedItem.proc.pid.toString() : null;
+
+    if (isActive && orbitControlsRef.current && followTargetRef.current) {
+      wasActiveRef.current = true;
+      
+      const targetPos = followTargetRef.current.position;
+      const radius = followTargetRef.current.radius;
+
+      if (targetPos.lengthSq() > 0.1) {
+        if (currentId !== prevSelectedRef.current) {
+          prevSelectedRef.current = currentId;
+          hasArrivedRef.current = false;
+          prevTargetPosRef.current = targetPos.clone();
+        }
+
+        const dir = targetPos.clone().normalize();
+        if (dir.length() === 0) dir.set(0, 0, 1);
+        
+        // Ideal camera position: outside the planet's orbit looking inward, slightly elevated
+        const dist = radius * 4.5 + 1.2;
+        const idealCamPos = targetPos.clone()
+          .addScaledVector(dir, dist)
+          .add(new THREE.Vector3(0, dist * 0.25, 0));
+
+        // 1. Shift camera and target by the exact amount the planet moved this frame
+        // This puts the camera in the planet's moving reference frame, eliminating orbital lag
+        if (prevTargetPosRef.current) {
+          const deltaPos = targetPos.clone().sub(prevTargetPosRef.current);
+          camera.position.add(deltaPos);
+          orbitControlsRef.current.target.add(deltaPos);
+        }
+
+        // 2. Glide camera to ideal zoom/angle ONLY initially
+        if (!hasArrivedRef.current) {
+          const lerpAlpha = Math.min(delta * 6.0, 1.0);
+          camera.position.lerp(idealCamPos, lerpAlpha);
+          if (camera.position.distanceTo(idealCamPos) < 0.5) {
+            hasArrivedRef.current = true;
+          }
+        }
+
+        // 3. ALWAYS tightly lock the target perfectly to the planet's center
+        // By using exact copy instead of lerp, we prevent violent math oscillations at low framerates.
+        orbitControlsRef.current.target.copy(targetPos);
+        
+        prevTargetPosRef.current = targetPos.clone();
+        orbitControlsRef.current.update();
+      }
+    } else if (!isActive && orbitControlsRef.current) {
+      if (wasActiveRef.current) {
+        wasActiveRef.current = false;
+        // When deselected, smoothly fly back to the global solar system overview
+        gsap.to(camera.position, {
+          x: 0,
+          y: 20,
+          z: 48,
+          duration: 2.0,
+          ease: "power3.inOut",
+          onUpdate: () => {
+            if (orbitControlsRef.current) orbitControlsRef.current.update();
+          }
+        });
+      }
+
+      // Smoothly return target to center (Sun) when nothing is selected
+      orbitControlsRef.current.target.lerp(new THREE.Vector3(0, 0, 0), delta * 3.5);
+    }
+  });
+  return null;
+}
+
+
+
 // ── Scene inner ───────────────────────────────────────────────────────────────
 interface SceneProps {
   metrics: MetricsData | null;
   onEarthClick: (pos: THREE.Vector3) => void;
   zoomedIn: boolean;
-  onSelectItem: (item: SelectedItem) => void;
+  selectedItem: SelectedItem | null;
+  onSelectItem: (item: SelectedItem | null) => void;
+  followTargetRef: React.MutableRefObject<{ position: THREE.Vector3; radius: number }>;
 }
 
-function SceneContent({ metrics, onEarthClick, zoomedIn, onSelectItem }: SceneProps) {
+function SceneContent({ metrics, onEarthClick, zoomedIn, selectedItem, onSelectItem, followTargetRef }: SceneProps) {
   const cpu  = metrics?.cpu_total ?? 0;
+  const orbitControlsRef = useRef<any>(null);
 
   // Sort top processes by RAM desc — biggest RAM → index 0 (Jupiter slot)
   const sortedProcs: ProcessData[] = [...(metrics?.top_processes ?? [])].sort(
@@ -90,6 +182,8 @@ function SceneContent({ metrics, onEarthClick, zoomedIn, onSelectItem }: ScenePr
           maxRam={maxRam}
           zoomedIn={zoomedIn}
           onSelect={(p, name) => onSelectItem({ type: "planet", proc: p, planetName: name })}
+          isSelected={selectedItem?.type === "planet" && selectedItem.proc.pid === proc.pid}
+          followTargetRef={followTargetRef}
         />
       ))}
 
@@ -102,15 +196,20 @@ function SceneContent({ metrics, onEarthClick, zoomedIn, onSelectItem }: ScenePr
           processes={bgProcs}
           zoomedIn={zoomedIn}
           onSelect={(p) => onSelectItem({ type: "asteroid", proc: p })}
+          selectedItem={selectedItem}
+          followTargetRef={followTargetRef}
         />
       )}
 
+      <FollowRig followTargetRef={followTargetRef} orbitControlsRef={orbitControlsRef} isActive={!!selectedItem} selectedItem={selectedItem} />
+
       <OrbitControls
+        ref={orbitControlsRef}
         enablePan={false}
         enableZoom={!zoomedIn}
-        minDistance={5}
-        maxDistance={95}       // Allow zooming out to see full system
-        autoRotate={!zoomedIn}
+        minDistance={1.0}
+        maxDistance={120}
+        autoRotate={!zoomedIn && !selectedItem}
         autoRotateSpeed={0.10}
         enableDamping
         dampingFactor={0.05}
@@ -124,11 +223,13 @@ interface SystemSceneProps {
   metrics: MetricsData | null;
   onEarthZoomed: () => void;
   zoomedIn: boolean;
+  selectedItem: SelectedItem | null;
+  onSelectItem: (item: SelectedItem | null) => void;
 }
 
-export default function SystemScene({ metrics, onEarthZoomed, zoomedIn }: SystemSceneProps) {
+export default function SystemScene({ metrics, onEarthZoomed, zoomedIn, selectedItem, onSelectItem }: SystemSceneProps) {
   const [earthWorldPos, setEarthWorldPos] = useState<THREE.Vector3 | null>(null);
-  const [selectedItem,  setSelectedItem]  = useState<SelectedItem | null>(null);
+  const followTargetRef = useRef({ position: new THREE.Vector3(), radius: 1 });
 
   // ── Fix: prevent Canvas onClick from clearing selection set by a 3D object ──
   // When a planet/asteroid is clicked, R3F's mesh onClick fires FIRST (native),
@@ -136,12 +237,12 @@ export default function SystemScene({ metrics, onEarthZoomed, zoomedIn }: System
   // the Canvas onClick always clears the selection immediately after it's set.
   const justSelectedRef = useRef(false);
 
-  const handleSelectItem = useCallback((item: SelectedItem) => {
+  const handleSelectItem = useCallback((item: SelectedItem | null) => {
     justSelectedRef.current = true;
     // Reset flag after current event loop so next empty-space clicks work
     requestAnimationFrame(() => { justSelectedRef.current = false; });
-    setSelectedItem(item);
-  }, []);
+    onSelectItem(item);
+  }, [onSelectItem]);
 
   const handleEarthClick = useCallback((pos: THREE.Vector3) => {
     setEarthWorldPos(pos.clone());
@@ -163,7 +264,7 @@ export default function SystemScene({ metrics, onEarthZoomed, zoomedIn }: System
         onClick={() => {
           // Only close panel if no 3D object was just clicked
           if (!justSelectedRef.current) {
-            setSelectedItem(null);
+            onSelectItem(null);
           }
         }}
       >
@@ -172,7 +273,9 @@ export default function SystemScene({ metrics, onEarthZoomed, zoomedIn }: System
             metrics={metrics}
             onEarthClick={handleEarthClick}
             zoomedIn={zoomedIn}
+            selectedItem={selectedItem}
             onSelectItem={handleSelectItem}
+            followTargetRef={followTargetRef}
           />
           <CameraRig targetPos={earthWorldPos} onZoomComplete={handleZoomComplete} />
         </Suspense>
@@ -182,7 +285,7 @@ export default function SystemScene({ metrics, onEarthZoomed, zoomedIn }: System
       <SidePanel
         item={selectedItem}
         allProcesses={allProcesses}
-        onClose={() => setSelectedItem(null)}
+        onClose={() => onSelectItem(null)}
       />
     </>
   );

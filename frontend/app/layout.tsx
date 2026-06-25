@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "SystemVerse — OS & Network Visualizer",
+  title: "OrbitOS — OS & Network Visualizer",
   description:
     "Real-time 3D visualization of your OS processes and network traceroutes as an interactive solar system.",
 };

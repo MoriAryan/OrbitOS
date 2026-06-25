@@ -1,6 +1,6 @@
-# SystemVerse (formerly SolarOS)
+# OrbitOS
 
-**Explore the hidden universe running inside your computer.**
+**A real-time operating system and network visualization engine that transforms live telemetry into an interactive universe.**
 
 > Every day we use computers that perform millions of operations per second.
 > 
@@ -10,32 +10,87 @@
 > 
 > Yet almost all of this activity remains invisible.  
 > 
-> SystemVerse was born from a simple question:  
+> OrbitOS was born from a simple question:  
 > **What if your computer could show you what it is doing instead of hiding it?**  
 > 
-> SystemVerse transforms operating system telemetry into a living solar system where running applications become planets orbiting a CPU star, and network routes become journeys across the globe.  
+> OrbitOS transforms operating system telemetry into a living solar system where running applications become planets orbiting a CPU star, and network routes become journeys across the globe.  
 > 
 > Instead of reading numbers from a task manager, you experience your machine as a dynamic universe.
 
 ---
 
 <div align="center">
-  <!-- TODO: Add a high quality GIF or Video here -->
-  <img src="https://via.placeholder.com/800x400/020408/06b6d4?text=Space+reserved+for+a+glorious+60fps+demo+video" alt="SystemVerse Demo" />
-  <br>
-  <em>(Screenshots and Demo Video coming soon...)</em>
+  <!-- PRIMARY DEMO CLIP (Main overview) -->
+  <video src="PASTE_YOUR_FIRST_VIDEO_LINK_HERE.mp4" width="800" controls autoplay muted loop playsinline></video>
+  
+  <br><br>
+
+  <!-- SECONDARY DEMO CLIP (e.g., Traceroute or zooming into a planet) -->
+  <video src="PASTE_YOUR_SECOND_VIDEO_LINK_HERE.mp4" width="800" controls autoplay muted loop playsinline></video>
+  
+  <br><br>
+  
+  <!-- HIGH-RES SCREENSHOT -->
+  <img src="PASTE_YOUR_SCREENSHOT_LINK_HERE.png" alt="OrbitOS Snapshot" width="800" />
 </div>
+
+---
+
+## 🏗️ How it works
+
+OrbitOS bridges the gap between low-level system metrics and high-performance 3D rendering.
+
+```text
+┌─────────────┐
+│   Windows   │  (Task Manager, Network Interfaces)
+│ Processes   │
+└──────┬──────┘
+       │
+    psutil
+       │
+┌──────▼──────┐
+│ Python WS   │  (Scans OS & ping traces)
+│ Backend     │
+└──────┬──────┘
+       │
+ WebSocket       (Streams at 500ms intervals)
+       │
+┌──────▼──────┐
+│ Next.js +   │
+│ Three.js    │  (React Three Fiber, GSAP)
+└──────┬──────┘
+       │
+   Solar System
+```
+
+---
+
+## ⚙️ Engineering Highlights
+
+- **Real-Time Telemetry Pipeline:** Engineered a robust WebSocket streaming pipeline delivering OS metrics at 500ms intervals with persistent local connections.
+- **Dynamic 3D Data Mapping:** Dynamically translates arbitrary, volatile process memory and CPU telemetry into continuous spatial transformations within a GPU-rendered scene.
+- **Instanced Rendering Optimization:** Renders 200+ background process objects without significant frame drops by leveraging Three.js `InstancedMesh` for highly efficient GPU batching.
+- **Decoupled Architecture:** Separates the Python system metrics collector and ICMP networking stack from the React/WebGL frontend, ensuring non-blocking performance.
+- **Custom Networking Visualization:** Implements live ICMP traceroute execution, aggregating hop IP data and resolving it against a geolocation API to plot spherical arc trajectories across a 3D Earth.
+
+---
+
+## 🌍 The Traceroute Engine
+
+The Earth represents your machine's network interface.
+
+While the planetary system visualizes activity *inside* your computer, Earth allows you to explore what happens *after* data leaves your machine. 
+
+By clicking the Earth and entering a URL, OrbitOS performs a real ICMP traceroute and visualizes the physical path your packets take across the internet, bouncing between global ISP towers before reaching their final destination.
 
 ---
 
 ## 🚀 Features
 
-• **Live CPU & Memory Visualization:** The Sun's intensity represents CPU usage, while planet sizes represent RAM usage.  
-• **Process-based Planetary System:** Your top running applications (Chrome, VS Code, Discord) are actual planets with accurate textures.  
-• **Background Asteroid Belt:** The hundreds of tiny background processes running on your PC are visualized as an interactive asteroid belt.  
-• **Interactive Network Node (Earth):** Click on Earth to switch to Traceroute mode.  
-• **Real Traceroute Visualization:** Trace packets from your computer to any URL on the internet, drawn as glowing arcs across a 3D Earth.  
-• **Real-time Telemetry Streaming:** 500ms update ticks for a buttery smooth, "live" feeling.
+• **Real OS Telemetry:** The Sun's emissive intensity represents live CPU usage; planet scales dynamically shift based on process RAM consumption.  
+• **Persistent Live Streaming:** Streams telemetry at 500ms intervals using persistent WebSockets for a buttery smooth, "live" feeling.  
+• **Real Networking Engine:** Executes live traceroutes and maps physical packet trajectories across a 3D globe using actual IP geolocation data.  
+• **Background Asteroid Belt:** Visualizes 200+ background processes as a dynamic asteroid belt using optimized GPU instanced rendering.  
 
 ---
 
@@ -45,10 +100,10 @@ If you are wondering: *"Is this random student project stealing my data and send
 
 **No. Not even a single byte.**
 
-SystemVerse is **100% Offline-First**. 
-The Python backend reads your system data (using `psutil`) and streams it over a local WebSocket (`ws://localhost:8765`) directly to your own browser. The telemetry data never leaves your machine. 
+OrbitOS is **100% Offline-First**. 
+CPU usage, memory data, process information, and telemetry **never leave your machine.** The Python backend reads your system data and streams it over a local WebSocket (`ws://localhost:8765`) directly to your own browser. 
 
-The *only* time SystemVerse connects to the outside world is when you explicitly use the Traceroute globe to ping a website. And even then, it's just standard ICMP pings. Don't trust me? I encourage you to read the code—that's why it's open source!
+The *only* time OrbitOS connects to the outside world is when you explicitly use the Traceroute globe to ping a website. And even then, it's just standard ICMP pings. Don't trust me? I encourage you to read the code—that's why it's open source!
 
 ---
 
@@ -58,8 +113,8 @@ I haven't packaged this into a `.exe` yet because I wanted to keep it fully open
 
 ### Prerequisites
 Before you begin, make sure you have installed:
-1. **[Node.js](https://nodejs.org/)** (for the beautiful 3D frontend)
-2. **[Python 3.8+](https://www.python.org/)** (for the backend that actually talks to your OS)
+1. **[Node.js](https://nodejs.org/)** (for the 3D frontend)
+2. **[Python 3.8+](https://www.python.org/)** (for the backend that talks to your OS)
 3. **[Npcap](https://npcap.com/)** (Required for Python's `scapy` to run traceroutes on Windows without pulling its hair out).
 
 ### Step 1: Start the Python Backend
@@ -68,8 +123,8 @@ This script acts as the "Task Manager", scanning your PC and sending the data ov
 
 ```bash
 # Open a terminal and clone the repository
-git clone https://github.com/yourusername/SystemVerse.git
-cd SystemVerse/backend
+git clone https://github.com/MoriAryan/OrbitOS.git
+cd OrbitOS/backend
 
 # Install the required Python libraries (psutil, websockets, scapy, requests)
 pip install -r requirements.txt
@@ -87,9 +142,9 @@ Leave the Python terminal running in the background. Open a **new** terminal win
 
 ```bash
 # Go to the frontend folder
-cd SystemVerse/frontend
+cd OrbitOS/frontend
 
-# Install dependencies (React, Three.js, gsap, tailwind, etc.)
+# Install dependencies
 npm install
 
 # Start the development server

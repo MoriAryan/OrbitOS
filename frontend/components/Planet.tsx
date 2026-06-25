@@ -136,10 +136,12 @@ interface PlanetProps {
   maxRam: number;
   zoomedIn?: boolean;
   onSelect: (proc: ProcessData, planetName: string) => void;
+  isSelected?: boolean;
+  followTargetRef?: React.MutableRefObject<{ position: THREE.Vector3; radius: number }>;
 }
 
 // ── Inner — calls useTexture, must be inside Suspense ────────────────────────
-function PlanetBody({ process, sizeRank, maxRam, zoomedIn, onSelect }: PlanetProps) {
+function PlanetBody({ process, sizeRank, maxRam, zoomedIn, onSelect, isSelected, followTargetRef }: PlanetProps) {
   const def     = PLANET_DEFS[sizeRank] ?? PLANET_DEFS[0];
   const texture = useTexture(def.texture);
 
@@ -174,6 +176,11 @@ function PlanetBody({ process, sizeRank, maxRam, zoomedIn, onSelect }: PlanetPro
 
     if (ringRef.current) {
       ringRef.current.rotation.z += delta * 0.02;
+    }
+
+    if (isSelected && followTargetRef && groupRef.current) {
+      groupRef.current.getWorldPosition(followTargetRef.current.position);
+      followTargetRef.current.radius = size;
     }
   });
 
@@ -248,8 +255,8 @@ function PlanetBody({ process, sizeRank, maxRam, zoomedIn, onSelect }: PlanetPro
           </>
         )}
 
-        {/* Planet label — always visible */}
-        {!zoomedIn && (
+        {/* Planet label — hide when selected to prevent massive text overlap */}
+        {(!zoomedIn && !isSelected) && (
           <Html position={[0, size + 0.42, 0]} center distanceFactor={18} occlude={false}>
             <div style={{
               background: "rgba(4,6,14,0.88)",

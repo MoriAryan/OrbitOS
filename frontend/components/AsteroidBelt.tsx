@@ -5,6 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { ProcessData } from "@/hooks/useSystemWS";
+import type { SelectedItem } from "./SidePanel";
 
 // Belt positioned between Mars (orbit=17) and Jupiter (orbit=27)
 const BELT_INNER = 19.5;
@@ -14,6 +15,8 @@ interface AsteroidBeltProps {
   processes: ProcessData[];
   zoomedIn?: boolean;
   onSelect: (proc: ProcessData) => void;
+  selectedItem?: SelectedItem | null;
+  followTargetRef?: React.MutableRefObject<{ position: THREE.Vector3; radius: number }>;
 }
 
 interface AsteroidData {
@@ -25,7 +28,7 @@ interface AsteroidData {
   rotZ:    number;
 }
 
-export default function AsteroidBelt({ processes, zoomedIn, onSelect }: AsteroidBeltProps) {
+export default function AsteroidBelt({ processes, zoomedIn, onSelect, selectedItem, followTargetRef }: AsteroidBeltProps) {
   const count     = Math.max(processes.length, 1);
   const groupRef  = useRef<THREE.Group>(null!);
   const meshRef   = useRef<THREE.InstancedMesh>(null!);
@@ -48,7 +51,7 @@ export default function AsteroidBelt({ processes, zoomedIn, onSelect }: Asteroid
         angle:  baseAngle + jitter,
         radius: BELT_INNER + rng(i + 200) * (BELT_OUTER - BELT_INNER),
         y:      (rng(i + 300) - 0.5) * 0.5,    // ± 0.25 — very flat disc
-        scale:  0.025 + rng(i + 400) * 0.055,   // tiny asteroids: 0.025–0.080
+        scale:  0.06 + rng(i + 400) * 0.08,    // Increased base size slightly
         rotX:   rng(i + 500) * Math.PI * 2,
         rotZ:   rng(i + 600) * Math.PI * 2,
       };
@@ -73,11 +76,29 @@ export default function AsteroidBelt({ processes, zoomedIn, onSelect }: Asteroid
   useFrame((_, delta) => {
     if (groupRef.current) groupRef.current.rotation.y += delta * 0.018;
 
+    // Camera follow tracking
+    if (selectedItem?.type === "asteroid" && followTargetRef && groupRef.current) {
+      const selectedId = processes.findIndex((p) => p.pid === selectedItem.proc.pid);
+      if (selectedId !== -1) {
+        const a = asteroids[selectedId];
+        const localPos = new THREE.Vector3(
+          Math.cos(a.angle) * a.radius,
+          a.y,
+          Math.sin(a.angle) * a.radius
+        );
+        // Apply belt rotation to get true world position
+        groupRef.current.localToWorld(localPos);
+        followTargetRef.current.position.copy(localPos);
+        followTargetRef.current.radius = a.scale;
+      }
+    }
+
     // Only update hovered asteroid scale — don't move others
     if (meshRef.current && hoveredId !== null) {
       const a = asteroids[hoveredId];
       dummy.position.set(Math.cos(a.angle) * a.radius, a.y, Math.sin(a.angle) * a.radius);
-      dummy.scale.setScalar(a.scale * 2.5);   // enlarge hovered asteroid
+      // Reduced hover scale jump to make it less erratic
+      dummy.scale.setScalar(a.scale * 1.5);   
       dummy.rotation.set(a.rotX, 0, a.rotZ);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(hoveredId, dummy.matrix);
