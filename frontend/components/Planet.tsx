@@ -1,128 +1,282 @@
 "use client";
 
-import { Html } from "@react-three/drei";
+import { Html, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import * as THREE from "three";
 import type { ProcessData } from "@/hooks/useSystemWS";
 
-// Vibrant planet colour palette
-const PLANET_COLORS = [
-  "#a855f7", // violet
-  "#3b82f6", // blue
-  "#22c55e", // green
-  "#f97316", // orange
-  "#ec4899", // pink
-  "#14b8a6", // teal
-  "#eab308", // yellow
-  "#ef4444", // red
-  "#8b5cf6", // indigo
-  "#06b6d4", // cyan
+// ── Real solar system planet definitions (in orbital order, excl. Earth) ──────
+// Earth is hardcoded in EarthNode at radius 20.
+// Processes are assigned by RAM rank: biggest RAM → biggest planet (Jupiter).
+// SIZE_RANK maps from "most RAM" (0) to "least RAM" (7).
+
+export const PLANET_DEFS = [
+  // [0] biggest RAM process → Jupiter (largest, most prominent)
+  {
+    name:     "Jupiter",
+    texture:  "/textures/planets/2k_jupiter.jpg",
+    orbit:    27,
+    color:    "#c4935a",
+    hasRings: false,
+    baseSize: 0.70,
+    maxSize:  1.10,
+    speed:    0.038,
+    tilt:     0.05,
+    roughness: 0.85,
+    metalness: 0.02,
+  },
+  // [1] → Saturn (with rings)
+  {
+    name:     "Saturn",
+    texture:  "/textures/planets/2k_saturn.jpg",
+    orbit:    34,
+    color:    "#e4d191",
+    hasRings: true,
+    baseSize: 0.58,
+    maxSize:  0.95,
+    speed:    0.030,
+    tilt:     0.046,
+    roughness: 0.80,
+    metalness: 0.02,
+  },
+  // [2] → Neptune
+  {
+    name:     "Neptune",
+    texture:  "/textures/planets/2k_neptune.jpg",
+    orbit:    40,
+    color:    "#5b7fde",
+    hasRings: false,
+    baseSize: 0.45,
+    maxSize:  0.78,
+    speed:    0.022,
+    tilt:     0.029,
+    roughness: 0.75,
+    metalness: 0.02,
+  },
+  // [3] → Uranus
+  {
+    name:     "Uranus",
+    texture:  "/textures/planets/2k_uranus.jpg",
+    orbit:    47,
+    color:    "#7de8e8",
+    hasRings: false,
+    baseSize: 0.42,
+    maxSize:  0.75,
+    speed:    0.018,
+    tilt:     1.48,
+    roughness: 0.70,
+    metalness: 0.02,
+  },
+  // [4] → Mars
+  {
+    name:     "Mars",
+    texture:  "/textures/planets/2k_mars.jpg",
+    orbit:    17,
+    color:    "#c1440e",
+    hasRings: false,
+    baseSize: 0.28,
+    maxSize:  0.52,
+    speed:    0.062,
+    tilt:     0.44,
+    roughness: 0.92,
+    metalness: 0.01,
+  },
+  // [5] → Venus
+  {
+    name:     "Venus",
+    texture:  "/textures/planets/2k_venus_surface.jpg",
+    orbit:    9,
+    color:    "#e8cda0",
+    hasRings: false,
+    baseSize: 0.30,
+    maxSize:  0.52,
+    speed:    0.090,
+    tilt:     0.046,
+    roughness: 0.85,
+    metalness: 0.01,
+  },
+  // [6] → Mercury
+  {
+    name:     "Mercury",
+    texture:  "/textures/planets/2k_moon.jpg",
+    orbit:    7.5,        // Moved further from Sun (was 5 — overlapped Sun body)
+    color:    "#a0a0a0",
+    hasRings: false,
+    baseSize: 0.18,
+    maxSize:  0.35,
+    speed:    0.16,
+    tilt:     0.01,
+    roughness: 0.95,
+    metalness: 0.01,
+  },
+  // [7] least RAM → Pluto (tiny, outermost)
+  {
+    name:     "Pluto",
+    texture:  "/textures/planets/2k_moon.jpg",
+    orbit:    54,
+    color:    "#b8a898",
+    hasRings: false,
+    baseSize: 0.12,
+    maxSize:  0.22,
+    speed:    0.012,
+    tilt:     0.30,
+    roughness: 0.95,
+    metalness: 0.00,
+  },
 ];
 
-// Orbital radii for each rank (index 0 = highest RAM)
-const ORBIT_RADII = [5, 7, 9, 11, 13.5, 16, 18.5, 21, 23.5, 26];
-const ORBIT_OFFSETS = [0, 0.63, 1.26, 1.89, 2.51, 3.14, 3.77, 4.40, 5.03, 5.65];
+// Staggered initial angles so planets start spread out
+const ORBIT_OFFSETS = [0, 0.78, 1.57, 2.36, 3.14, 3.93, 4.71, 5.50];
 
 interface PlanetProps {
   process: ProcessData;
-  index: number;     // 0–9 rank
-  maxRam: number;    // for normalisation
+  /** 0 = biggest RAM process (Jupiter), 7 = smallest (Pluto) */
+  sizeRank: number;
+  maxRam: number;
   zoomedIn?: boolean;
+  onSelect: (proc: ProcessData, planetName: string) => void;
 }
 
-export default function Planet({ process, index, maxRam, zoomedIn }: PlanetProps) {
-  const groupRef  = useRef<THREE.Group>(null!);
-  const angleRef  = useRef(ORBIT_OFFSETS[index] ?? 0);
-  const meshRef   = useRef<THREE.Mesh>(null!);
+// ── Inner — calls useTexture, must be inside Suspense ────────────────────────
+function PlanetBody({ process, sizeRank, maxRam, zoomedIn, onSelect }: PlanetProps) {
+  const def     = PLANET_DEFS[sizeRank] ?? PLANET_DEFS[0];
+  const texture = useTexture(def.texture);
 
-  const color      = PLANET_COLORS[index % PLANET_COLORS.length];
-  const radius     = ORBIT_RADII[index] ?? 5 + index * 2;
+  const groupRef = useRef<THREE.Group>(null!);
+  const meshRef  = useRef<THREE.Mesh>(null!);
+  const ringRef  = useRef<THREE.Mesh>(null!);
+  const angleRef = useRef(ORBIT_OFFSETS[sizeRank] ?? 0);
 
-  // Planet size: 0.22 → 0.85 based on RAM
-  const planetSize = 0.22 + (process.ram_mb / Math.max(maxRam, 1)) * 0.63;
+  // Scale planet size by RAM, clamped between baseSize and maxSize
+  const ramFrac  = Math.min(process.ram_mb / Math.max(maxRam, 1), 1);
+  const size     = def.baseSize + ramFrac * (def.maxSize - def.baseSize);
 
-  // Orbital speed: 0.08 → 0.45 rad/s (inverse — inner orbits faster)
-  const baseSpeed  = 0.45 - (index / 10) * 0.37;
-  const cpuBoost   = (process.cpu_pct / 100) * 0.2;
-  const speed      = Math.max(0.06, baseSpeed + cpuBoost);
+  // Scale orbital speed by CPU (higher CPU → faster)
+  const cpuFrac  = Math.max(process.cpu_pct / 100, 0.05);
+  const speed    = def.speed * (0.6 + cpuFrac * 0.8);
 
   useFrame((_, delta) => {
     angleRef.current += speed * delta;
 
     if (groupRef.current) {
-      groupRef.current.position.x = Math.cos(angleRef.current) * radius;
-      groupRef.current.position.z = Math.sin(angleRef.current) * radius;
-      groupRef.current.position.y = Math.sin(angleRef.current * 0.7) * 0.4;
+      const r = def.orbit;
+      groupRef.current.position.x = Math.cos(angleRef.current) * r;
+      groupRef.current.position.z = Math.sin(angleRef.current) * r;
+      // Slight orbital inclination for realism
+      groupRef.current.position.y = Math.sin(angleRef.current * 0.6) * 0.5;
     }
 
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.3;
+      // Axial tilt + self-rotation
+      meshRef.current.rotation.y += delta * 0.25;
+    }
+
+    if (ringRef.current) {
+      ringRef.current.rotation.z += delta * 0.02;
     }
   });
 
   return (
     <>
-      {/* Orbit path ring */}
+      {/* Orbit path — clearly visible dotted circle */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[radius, 0.012, 8, 160]} />
-        <meshBasicMaterial color={color} transparent opacity={0.12} />
+        <torusGeometry args={[def.orbit, 0.018, 8, 200]} />
+        <meshBasicMaterial color={def.color} transparent opacity={0.35} />
       </mesh>
 
-      {/* Planet group — position updated in useFrame */}
-      <group ref={groupRef}>
+      <group ref={groupRef} rotation={[def.tilt, 0, 0]}>
         {/* Planet body */}
-        <mesh ref={meshRef}>
-          <sphereGeometry args={[planetSize, 32, 32]} />
+        <mesh
+          ref={meshRef}
+          onClick={(e) => {
+            // Stop both R3F and native propagation so Canvas onClick
+            // doesn't clear the side panel immediately after opening it
+            e.stopPropagation();
+            (e.nativeEvent as Event).stopImmediatePropagation();
+            onSelect(process, def.name);
+          }}
+          onPointerEnter={() => { document.body.style.cursor = "pointer"; }}
+          onPointerLeave={() => { document.body.style.cursor = "auto"; }}
+        >
+          <sphereGeometry args={[size, 56, 56]} />
           <meshStandardMaterial
-            color={color}
-            emissive={color}
+            map={texture}
+            roughness={def.roughness}
+            metalness={def.metalness}
+            // Strong emissive so planets are ALWAYS clearly visible
+            emissive={new THREE.Color(def.color)}
             emissiveIntensity={0.35}
-            roughness={0.6}
-            metalness={0.1}
           />
         </mesh>
 
-        {/* Atmospheric glow */}
+        {/* Subtle atmosphere rim */}
         <mesh>
-          <sphereGeometry args={[planetSize * 1.35, 16, 16]} />
-          <meshStandardMaterial
-            color={color}
+          <sphereGeometry args={[size * 1.08, 24, 24]} />
+          <meshBasicMaterial
+            color={def.color}
             transparent
-            opacity={0.07}
+            opacity={0.12}
             side={THREE.BackSide}
             depthWrite={false}
           />
         </mesh>
 
-        {/* Process name label */}
+        {/* Saturn ring system — only for Saturn (sizeRank 1) */}
+        {def.hasRings && (
+          <>
+            {/* Inner dense ring */}
+            <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[size * 1.7, size * 0.38, 2, 120]} />
+              <meshBasicMaterial
+                color="#d4c47a"
+                transparent
+                opacity={0.75}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            {/* Outer sparse ring */}
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[size * 2.3, size * 0.12, 2, 120]} />
+              <meshBasicMaterial
+                color="#c8b86a"
+                transparent
+                opacity={0.45}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </>
+        )}
+
+        {/* Planet label — always visible */}
         {!zoomedIn && (
-          <Html
-            position={[0, planetSize + 0.35, 0]}
-            center
-            distanceFactor={18}
-            occlude={false}
-          >
-            <div
-              style={{
-                background: "rgba(10,14,26,0.85)",
-                border: `1px solid ${color}55`,
-                borderRadius: "4px",
-                padding: "2px 6px",
-                fontSize: "10px",
-                fontFamily: "JetBrains Mono, monospace",
-                color: color,
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-                userSelect: "none",
-                textShadow: `0 0 6px ${color}`,
-              }}
-            >
-              {process.name.replace(".exe", "")}
+          <Html position={[0, size + 0.42, 0]} center distanceFactor={18} occlude={false}>
+            <div style={{
+              background: "rgba(4,6,14,0.88)",
+              border: `1px solid ${def.color}77`,
+              borderRadius: 4,
+              padding: "2px 7px",
+              fontSize: 10,
+              fontFamily: "JetBrains Mono, monospace",
+              color: def.color,
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              userSelect: "none",
+              textShadow: `0 0 8px ${def.color}`,
+            }}>
+              {process.name.replace(/\.exe$/i, "")}
             </div>
           </Html>
         )}
       </group>
     </>
+  );
+}
+
+export default function Planet(props: PlanetProps) {
+  return (
+    <Suspense fallback={null}>
+      <PlanetBody {...props} />
+    </Suspense>
   );
 }

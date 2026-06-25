@@ -289,8 +289,8 @@ function GlobeScene({ hops, interacting, setInter, viewMode, traceComplete }: Gl
   // Deduplicate towers globally so if a trace leaves a city and comes back, we don't draw two towers in the exact same spot!
   const towers: (TraceHop & { bounces: number, isLatest: boolean, isFinal: boolean })[] = [];
   uniqueHops.forEach((hop, idx) => {
-    const isLatest = idx === uniqueHops.length - 1 && loading;
-    const isFinal = idx === uniqueHops.length - 1 && !loading;
+    const isLatest = idx === uniqueHops.length - 1 && !traceComplete;
+    const isFinal = idx === uniqueHops.length - 1 && traceComplete;
     
     const existing = towers.find(t => Math.abs(t.lat! - hop.lat!) < 0.05 && Math.abs(t.lon! - hop.lon!) < 0.05);
     if (existing) {
@@ -424,24 +424,29 @@ function GlobeScene({ hops, interacting, setInter, viewMode, traceComplete }: Gl
 
   return (
     <>
-      <ambientLight intensity={0.65} />
-      <pointLight position={[8, 8, 8]} intensity={2.8} color="#e2e8f0" />
-      <pointLight position={[-6, -4, -6]} intensity={1.2} color="#1e3b8a" />
+      <ambientLight intensity={0.5} />
+      {/* Main light — slightly off-center for realistic day/night side */}
+      <pointLight position={[6, 4, 6]} intensity={4.5} color="#e8f0ff" />
+      {/* Cool fill from opposite side — keeps dark hemisphere visible */}
+      <pointLight position={[-5, -3, -5]} intensity={1.8} color="#1a3a6e" />
 
       {/* Starfield background */}
       <Stars radius={120} depth={40} count={3500} factor={3.5} saturation={0} fade speed={0.4} />
 
       <group ref={globeGroupRef}>
-        {/* Globe body */}
+        {/* Globe body — photorealistic with strong emissive so it always glows */}
         <mesh>
           <sphereGeometry args={[R, 64, 64]} />
           <meshStandardMaterial
             map={earthTexture}
             bumpMap={topologyTexture}
-            bumpScale={0.015}
+            bumpScale={0.022}
             metalnessMap={waterTexture}
-            metalness={0.6}
-            roughness={0.6}
+            metalness={0.35}
+            roughness={0.65}
+            // Strong emissive: keeps oceans deep blue even on the dark side
+            emissive={new THREE.Color("#091830")}
+            emissiveIntensity={0.8}
           />
         </mesh>
 
@@ -457,26 +462,39 @@ function GlobeScene({ hops, interacting, setInter, viewMode, traceComplete }: Gl
           />
         </mesh>
 
-        {/* Atmosphere rim - inner glow */}
+        {/* Atmosphere rim — inner glow: bright cyan blue */}
         <mesh>
           <sphereGeometry args={[R * 1.018, 64, 64]} />
           <meshBasicMaterial
-            color="#0ea5e9"
+            color="#38bdf8"
             transparent
-            opacity={0.15}
+            opacity={0.28}
             side={THREE.BackSide}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
         </mesh>
 
-        {/* Atmosphere rim - outer corona */}
+        {/* Atmosphere rim — mid glow */}
         <mesh>
-          <sphereGeometry args={[R * 1.08, 64, 64]} />
+          <sphereGeometry args={[R * 1.06, 64, 64]} />
+          <meshBasicMaterial
+            color="#0ea5e9"
+            transparent
+            opacity={0.14}
+            side={THREE.BackSide}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+
+        {/* Atmosphere rim — outer corona */}
+        <mesh>
+          <sphereGeometry args={[R * 1.18, 64, 64]} />
           <meshBasicMaterial
             color="#0284c7"
             transparent
-            opacity={0.05}
+            opacity={0.06}
             side={THREE.BackSide}
             blending={THREE.AdditiveBlending}
             depthWrite={false}

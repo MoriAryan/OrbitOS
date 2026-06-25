@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { MetricsData, WsStatus } from "@/hooks/useSystemWS";
 
 interface HUDProps {
@@ -14,11 +15,19 @@ const STATUS_CONFIG: Record<WsStatus, { color: string; label: string }> = {
   error:        { color: "#ef4444", label: "ERROR" },
 };
 
+const PLANET_COLORS = [
+  "#a855f7","#3b82f6","#22c55e","#f97316","#ec4899",
+  "#14b8a6","#eab308","#ef4444","#8b5cf6","#06b6d4",
+];
+
 export default function HUD({ metrics, wsStatus }: HUDProps) {
-  const status  = STATUS_CONFIG[wsStatus];
-  const cpuPct  = metrics?.cpu_total ?? 0;
-  const topProc = metrics?.top_processes?.[0];
-  const bgCount = metrics?.bg_processes?.count ?? 0;
+  const status   = STATUS_CONFIG[wsStatus];
+  const cpuPct   = metrics?.cpu_total ?? 0;
+  const topProc  = metrics?.top_processes?.[0];
+  const bgCount  = metrics?.bg_processes?.count ?? 0;
+  const bgProcs  = metrics?.bg_processes?.processes ?? [];
+
+  const [bgExpanded, setBgExpanded] = useState(false);
 
   return (
     <>
@@ -104,7 +113,7 @@ export default function HUD({ metrics, wsStatus }: HUDProps) {
               TOP PROCESS
             </div>
             <div style={{ fontSize: 11, color: "#a855f7", fontFamily: "JetBrains Mono, monospace" }}>
-              {topProc.name.replace(".exe", "").substring(0, 20)}
+              {topProc.name.substring(0, 20)}
             </div>
             <div style={{ fontSize: 9, color: "#64748b", fontFamily: "JetBrains Mono, monospace" }}>
               {topProc.ram_mb.toFixed(0)} MB RAM · {topProc.cpu_pct.toFixed(1)}% CPU
@@ -122,8 +131,10 @@ export default function HUD({ metrics, wsStatus }: HUDProps) {
           right: 20,
           padding: "12px 16px",
           borderRadius: 10,
-          minWidth: 200,
-          maxWidth: 240,
+          minWidth: 210,
+          maxWidth: 260,
+          maxHeight: "80vh",
+          overflowY: "auto",
           zIndex: 10,
         }}
       >
@@ -139,7 +150,8 @@ export default function HUD({ metrics, wsStatus }: HUDProps) {
           PLANETS ({metrics?.top_processes?.length ?? 0})
         </div>
 
-        {metrics?.top_processes?.slice(0, 5).map((p, i) => (
+        {/* Top 10 planets */}
+        {metrics?.top_processes?.map((p, i) => (
           <div
             key={p.pid}
             style={{
@@ -150,27 +162,86 @@ export default function HUD({ metrics, wsStatus }: HUDProps) {
               gap: 8,
             }}
           >
-            <span
-              style={{
-                fontSize: 10,
-                fontFamily: "JetBrains Mono, monospace",
-                color: ["#a855f7", "#3b82f6", "#22c55e", "#f97316", "#ec4899"][i],
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flex: 1,
-              }}
-            >
-              {p.name.replace(".exe", "").substring(0, 16)}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, flex: 1, minWidth: 0 }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                background: PLANET_COLORS[i % 10],
+                boxShadow: `0 0 4px ${PLANET_COLORS[i % 10]}`,
+              }} />
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "JetBrains Mono, monospace",
+                  color: PLANET_COLORS[i % 10],
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flex: 1,
+                }}
+              >
+                {p.name.substring(0, 18)}
+              </span>
+            </div>
             <span style={{ fontSize: 9, color: "#475569", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
-              {p.ram_mb.toFixed(0)}MB
+              {p.ram_mb >= 1024 ? `${(p.ram_mb / 1024).toFixed(1)}GB` : `${p.ram_mb.toFixed(0)}MB`}
             </span>
           </div>
         ))}
 
-        <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 9, color: "#334155", fontFamily: "JetBrains Mono, monospace" }}>
-          +{bgCount} background processes
+        {/* Expandable background processes */}
+        <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <button
+            onClick={() => setBgExpanded(b => !b)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              width: "100%",
+            }}
+          >
+            <span style={{ fontSize: 9, color: "#475569", fontFamily: "JetBrains Mono, monospace" }}>
+              {bgExpanded ? "▼" : "▶"}
+            </span>
+            <span style={{ fontSize: 9, color: bgExpanded ? "#94a3b8" : "#475569", fontFamily: "JetBrains Mono, monospace" }}>
+              +{bgCount} background processes
+            </span>
+          </button>
+
+          {bgExpanded && bgProcs.length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              {bgProcs.map((p, i) => (
+                <div
+                  key={p.pid}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "2px 0",
+                    gap: 6,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 9,
+                    fontFamily: "JetBrains Mono, monospace",
+                    color: "#334155",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    flex: 1,
+                  }}>
+                    {p.name.substring(0, 20)}
+                  </span>
+                  <span style={{ fontSize: 8, color: "#1e293b", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap" }}>
+                    {p.ram_mb.toFixed(0)}MB
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

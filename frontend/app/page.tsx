@@ -85,14 +85,24 @@ export default function Home() {
       {/* HUD overlays */}
       {!zoomedIn && <HUD metrics={metrics} wsStatus={wsStatus} />}
 
-      {/* Traceroute Globe — shown after Earth click + zoom */}
+      {/* Traceroute Globe — fades in after Earth click + zoom */}
       {zoomedIn && (
-        <TraceGlobe
-          hops={traceHops}
-          traceStatus={traceStatus}
-          onTrace={sendTraceroute}
-          onClose={handleCloseGlobe}
-        />
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            animation: "fadeIn 0.6s ease forwards",
+          }}
+        >
+          <style>{`@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }`}</style>
+          <TraceGlobe
+            hops={traceHops}
+            traceStatus={traceStatus}
+            onTrace={sendTraceroute}
+            onClose={handleCloseGlobe}
+          />
+        </div>
       )}
     </main>
   );

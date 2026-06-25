@@ -16,6 +16,126 @@ import websockets.exceptions
 
 # ── Config ────────────────────────────────────────────────────────────────────
 PORT = 8765
+
+# Human-readable display names for common Windows/Mac/Linux system processes
+FRIENDLY_NAMES: dict[str, str] = {
+    "chrome.exe":                 "Google Chrome",
+    "msedge.exe":                 "Microsoft Edge",
+    "firefox.exe":                "Firefox",
+    "brave.exe":                  "Brave Browser",
+    "opera.exe":                  "Opera",
+    "code.exe":                   "VS Code",
+    "cursor.exe":                 "Cursor IDE",
+    "windsurf.exe":               "Windsurf IDE",
+    "node.exe":                   "Node.js",
+    "python.exe":                 "Python",
+    "python3.exe":                "Python 3",
+    "pythonw.exe":                "Python (bg)",
+    "discord.exe":                "Discord",
+    "slack.exe":                  "Slack",
+    "teams.exe":                  "MS Teams",
+    "zoom.exe":                   "Zoom",
+    "spotify.exe":                "Spotify",
+    "steam.exe":                  "Steam",
+    "explorer.exe":               "Windows Explorer",
+    "searchhost.exe":             "Windows Search",
+    "runtimebroker.exe":          "Runtime Broker",
+    "svchost.exe":                "System Services",
+    "lsass.exe":                  "Security (LSASS)",
+    "dwm.exe":                    "Desktop Window Mgr",
+    "csrss.exe":                  "System Runtime",
+    "wininit.exe":                "Windows Init",
+    "winlogon.exe":               "Windows Logon",
+    "audiodg.exe":                "Audio Service",
+    "textinputhost.exe":          "Touch Keyboard",
+    "startmenuexperiencehost.exe":"Start Menu",
+    "shellexperiencehost.exe":    "Shell Experience",
+    "sihost.exe":                 "Shell Infrastructure",
+    "taskhostw.exe":              "Task Host",
+    "ctfmon.exe":                 "Language/Input",
+    "fontdrvhost.exe":            "Font Driver",
+    "spoolsv.exe":                "Print Spooler",
+    "mscorsvw.exe":               ".NET Optimizer",
+    "msmpeng.exe":                "Windows Defender",
+    "antimalware service executable": "Windows Defender",
+    "nvcontainer.exe":            "Nvidia Container",
+    "nvdisplay.container.exe":    "Nvidia Display",
+    "nvidia web helper.exe":      "Nvidia Web Helper",
+    "nvosd.exe":                  "Nvidia OSD",
+    "amdow.exe":                  "AMD Overlay",
+    "atieclxx.exe":               "AMD External Events",
+    "onedrive.exe":               "OneDrive",
+    "dropbox.exe":                "Dropbox",
+    "googledrivefs.exe":          "Google Drive",
+    "outlook.exe":                "Outlook",
+    "winword.exe":                "Microsoft Word",
+    "excel.exe":                  "Microsoft Excel",
+    "powerpnt.exe":               "PowerPoint",
+    "acrobat.exe":                "Adobe Acrobat",
+    "acrord32.exe":               "Adobe Reader",
+    "photoshop.exe":              "Photoshop",
+    "illustrator.exe":            "Illustrator",
+    "figma.exe":                  "Figma",
+    "postman.exe":                "Postman",
+    "docker desktop.exe":         "Docker Desktop",
+    "com.docker.backend.exe":     "Docker Backend",
+    "git.exe":                    "Git",
+    "conhost.exe":                "Console Host",
+    "cmd.exe":                    "Command Prompt",
+    "powershell.exe":             "PowerShell",
+    "windowsterminal.exe":        "Windows Terminal",
+    "nssm.exe":                   "NSSM Service Mgr",
+    "msode.exe":                  "MS ODE",
+    "nssdc.exe":                  "Nvidia Share",
+    "nvsphelper64.exe":           "Nvidia Share Helper",
+    "language_server.exe":        "Language Server",
+    "antigravity ide.exe":        "Antigravity IDE",
+    "mexcompression.exe":         "MEX Compression",
+    # Windows built-in
+    "memcompression.exe":         "Memory Compression",
+    "snippingtool.exe":           "Snipping Tool",
+    "snippingtool":               "Snipping Tool",
+    "searchfilterhost.exe":       "Search Filter",
+    "searchindexer.exe":          "Search Indexer",
+    "searchprotocolhost.exe":     "Search Protocol",
+    "dllhost.exe":                "DLL Host",
+    "smartscreen.exe":            "SmartScreen",
+    "securityhealthservice.exe":  "Security Health",
+    "securityhealthsystray.exe":  "Security Systray",
+    "wuauclt.exe":                "Windows Update",
+    "usocoreworker.exe":          "Update Worker",
+    "msiexec.exe":                "Installer",
+    "sppextcomobj.exe":           "License Manager",
+    "vmmem":                      "VM Memory",
+    "vmmemwsl":                   "WSL Memory",
+    "wslhost.exe":                "WSL Host",
+    "wsl.exe":                    "WSL",
+    "wsl2.exe":                   "WSL 2",
+    "olk.exe":                    "New Outlook",
+    "msedgewebview2.exe":         "Edge WebView2",
+    "supportassistagent.exe":     "Dell Support Assist",
+    "dell.techhub.instrum":       "Dell TechHub",
+    "mc-fw-host.exe":             "Malwarebytes",
+    "mbamservice.exe":            "Malwarebytes Svc",
+    "pyrefly.exe":                "Pyrefly",
+    "esrv_svc.exe":               "Intel Energy",
+    "igfxem.exe":                 "Intel Graphics",
+    "igfxcui.exe":                "Intel GFX UI",
+    "perfmon.exe":                "Performance Monitor",
+    "taskmgr.exe":                "Task Manager",
+    "regedit.exe":                "Registry Editor",
+    "mmc.exe":                    "Management Console",
+    "eventvwr.exe":               "Event Viewer",
+    "commsapps.exe":              "Communication Apps",
+    "yourphone.exe":              "Phone Link",
+    "phoneexperiencehost.exe":    "Phone Link Host",
+    "gamebar.exe":                "Xbox Game Bar",
+    "gamebarft.exe":              "Game Bar FT",
+    "widgets.exe":                "Windows Widgets",
+    "widgetsservice.exe":         "Widgets Service",
+    "copilot.exe":                "Copilot",
+    "unknown":                    "Unknown Process",
+}
 def _get_my_location() -> dict:
     try:
         r = requests.get("http://ip-api.com/json/", timeout=3)
@@ -74,8 +194,31 @@ def _collect_metrics_sync() -> dict:
             pass
 
     procs.sort(key=lambda p: p["ram_mb"], reverse=True)
-    top = procs[:10]
-    bg  = procs[10:]
+    
+    # Group same-name processes (e.g. multiple chrome.exe workers) into a single entry
+    grouped: dict[str, dict] = {}
+    for p in procs:
+        base_name = p["name"].lower()
+        # Try exact match first, then prefix match for long names like language_server_windows_x64.exe
+        friendly = FRIENDLY_NAMES.get(base_name, None)
+        if not friendly:
+            for key, val in FRIENDLY_NAMES.items():
+                if base_name.startswith(key.replace(".exe", "")):
+                    friendly = val
+                    break
+        # Clean display name: remove .exe suffix and path separators
+        raw_clean = p["name"].replace(".exe", "").replace(".EXE", "").replace("_", " ").strip()
+        display_name = friendly if friendly else raw_clean
+        
+        if base_name in grouped:
+            grouped[base_name]["ram_mb"]  = round(grouped[base_name]["ram_mb"]  + p["ram_mb"],  1)
+            grouped[base_name]["cpu_pct"] = round(grouped[base_name]["cpu_pct"] + p["cpu_pct"], 1)
+        else:
+            grouped[base_name] = {**p, "name": display_name}
+    
+    merged = sorted(grouped.values(), key=lambda p: p["ram_mb"], reverse=True)
+    top = merged[:10]
+    bg  = merged[10:]
 
     return {
         "type":          "metrics",
@@ -85,6 +228,7 @@ def _collect_metrics_sync() -> dict:
         "bg_processes": {
             "count":        len(bg),
             "total_ram_mb": round(sum(p["ram_mb"] for p in bg), 1),
+            "processes":    bg,   # Full list so the HUD can expand it
         },
     }
 
@@ -124,7 +268,7 @@ async def metrics_loop(websocket) -> None:
         try:
             data = await get_system_metrics()
             await websocket.send(json.dumps(data))
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
         except websockets.exceptions.ConnectionClosed:
             break
         except Exception as exc:

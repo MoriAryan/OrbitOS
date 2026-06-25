@@ -15,7 +15,7 @@ export interface MetricsData {
   timestamp: number;
   cpu_total: number;
   top_processes: ProcessData[];
-  bg_processes: { count: number; total_ram_mb: number };
+  bg_processes: { count: number; total_ram_mb: number; processes?: ProcessData[] };
 }
 
 export interface TraceHop {
