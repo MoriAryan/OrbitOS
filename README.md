@@ -21,17 +21,18 @@
 
 <div align="center">
   <!-- PRIMARY DEMO CLIP (Main overview) -->
-  <video src="PASTE_YOUR_FIRST_VIDEO_LINK_HERE.mp4" width="800" controls autoplay muted loop playsinline></video>
+  <video src="https://github.com/user-attachments/assets/4af316a6-8065-4173-afed-e4940a3f81a2" width="800" controls autoplay muted loop playsinline></video>
   
   <br><br>
 
   <!-- SECONDARY DEMO CLIP (e.g., Traceroute or zooming into a planet) -->
-  <video src="PASTE_YOUR_SECOND_VIDEO_LINK_HERE.mp4" width="800" controls autoplay muted loop playsinline></video>
+  <video src="https://github.com/user-attachments/assets/52b7debd-ed74-42f2-8aae-d6c07d2bd426" width="800" controls autoplay muted loop playsinline></video>
   
   <br><br>
   
   <!-- HIGH-RES SCREENSHOT -->
-  <img src="PASTE_YOUR_SCREENSHOT_LINK_HERE.png" alt="OrbitOS Snapshot" width="800" />
+
+  <img src="https://github.com/user-attachments/assets/8707bb0b-1b6a-4442-9144-f6c873946c6b" alt="OrbitOS Snapshot" width="800" />
 </div>
 
 ---
@@ -165,3 +166,6 @@ You should see your actual computer processes floating in space. Click on Earth 
 * **Coffee:** Lots of it.
 
 *Feel free to star the repo, fork it, break it, and submit a PR!*
+
+Made with love by Mori Aryan
+
